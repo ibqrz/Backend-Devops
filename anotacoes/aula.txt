@@ -1,0 +1,175 @@
+npm init -y
+npm i express
+git init
+(deleta o node_modules)
+npm i
+(cria '.gitignore' escreva -> "node_modules")
+(salve)
+npm i -D typescript ts-node-dev @types/node @types/express
+npx tsc --init
+(em tsconfig.json ->
+"
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "es2020",
+    "strict": true,
+    "esModuleInterop": true,
+    "rootDir": "./src",
+    "outDir": "./dist"
+  }
+}
+
+<- termina aqui
+)
+
+(crie a pasta 'src' na pasta raiz)
+(em 'src', crie 'controllers' e 'routes')
+(em 'routes' crie o arquivo 'server.ts')
+
+(altera o packege.json ->
+
+{
+  "name": "aula-api-back-b",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "dev": "ts-node-dev --respawn src/server.ts"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "dependencies": {
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.3",
+    "@types/node": "^24.3.0",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.2"
+  }
+}
+
+<-)
+
+(escreva em 'server.ts' -> 
+
+import express from "express";
+import alunoRouter from "./routes/alunoRoute";
+
+const app = express();
+app.use(express.json());
+
+app.use("/aluno", alunoRouter);
+
+app.listen(3000, () => {
+    console.log("API Server Rodando");
+})
+
+<-)
+
+(em 'controllers' crie o arquivo 'alunoController.ts' e nele escreva ->
+
+import { Request, Response } from "express";
+
+interface Aluno {
+    ra: string;
+    nome: string;
+}
+
+import { Request, Response } from "express";
+
+interface Aluno {
+    ra: string;
+    nome: string;
+}
+
+export class AlunoController {
+    private alunos: Aluno[] = [];
+
+    get(req: Request, res: Response) : Response {
+        return res.json(this.alunos);
+    } 
+
+    post(req: Request, res: Response) : Response {
+        const{ ra, nome } = req.body;
+        const novoAluno: Aluno = { ra: ra, nome: nome }; 
+        
+        this.alunos.push(novoAluno);
+        
+        return res.status(201).json(novoAluno);
+    }
+
+    put(req: Request, res: Response) : Response {
+        const ra = req.params.ra;
+        const alunoIndex = this.alunos.findIndex(a => a.ra == ra)
+
+        if (alunoIndex > -1) {
+            const { nome } = req.body;
+
+            this.alunos[alunoIndex] = { ra: ra, nome: nome };
+            return res.json({ ra: ra, nome: nome });
+
+        } else {
+            return res.status(404).json({"message":"assinnou a chamada e vazou"})
+        }
+    }
+}
+
+<-)
+
+(em 'routes' crie o arquivo 'alunoRoute.ts' e nele escreva ->
+
+import {Router} from "express";
+import { AlunoController } from "../controllers/alunoController";
+
+const alunoRouter = Router();
+const alunoController = new AlunoController();
+
+alunoRouter.get("/", (req, res) => alunoController.get(req, res));
+alunoRouter.post("/", (req, res) => alunoController.post(req, res));
+alunoRouter.put("/:ra", (req, res) => alunoController.put(req, res));
+
+export default alunoRouter;
+
+<-)
+
+
+_INSTALE a extenção do VS Code 'REST Client' 
+
+(em src crie o arquivo 'request/aluno.rest')
+
+(em 'aluno.rest' escreva -> 
+
+### GET
+GET http://localhost:3000/aluno HTTP/1.1
+
+### POST
+POST http://localhost:3000/aluno HTTP/1.1
+Content-Type: application/json
+
+{
+    "ra": "123",
+    "nome": "Fulano"
+}
+
+### PUT
+PUT http://localhost:3000/aluno/123 HTTP/1.1
+Content-Type: application/json
+
+{
+    "nome": "Fulano alterado"
+}
+
+<-)
+
+- RUN -
+(no terminal)
+npm run dev
+
+(no chrome)
+http://localhost:3000/aluno
+
+(para parar - no terminal)
+ctrl + c
