@@ -1,0 +1,339 @@
+npm i jsonwebtoken bcryptjs
+npm i -D @types/jsonwebtoken @types/bcryptjs
+
+(na pasta 'controllers' crie o arquivo 'authController.ts')
+
+(em 'authController.ts' escreva ->
+
+import {Request, Response} from "express";
+import jwt from "jsonwebtoken";
+import bcrypt from "bcryptjs";
+
+const JWT_SECRET = process.env.JWT_SECRET || 'PenaltiFoiPIX';
+
+interface LoginUser{
+    id: number;
+    email: string;
+    senha: string;
+    nome: string;
+}
+
+export class AuthController {
+    private users: LoginUser[] = [];
+    
+    async registro(req: Request, res: Response): Promise<Response> {
+        const { nome, senha, email } = req.body;
+
+        if (!nome || !email || !senha) {
+            return res.status(400).json({mensagem: 'Faz direito'});
+        }
+
+        const usuarioExistente = this.users.find(u => u.email === email);
+        if (usuarioExistente) {
+            return res.status(400).json({mensagem: 'Usuario existente'});
+        }
+
+        const senhaHash = await bcrypt.hash(senha, 10);
+        const novoUsuario: LoginUser = {
+            id: this.users.length + 1,
+            nome,
+            email,
+            senha: senhaHash
+        };
+
+        this.users.push(novoUsuario);
+        return res.status(201).json({mensagem: 'Usuario criado!'});
+    }
+
+    async login(req: Request, res: Response): Promise<Response> {
+        const { email, senha } = req.body;
+
+        // TODO validar se os campos informados são validos
+        
+        const usuario = this.users.find(u => u.email === email);
+        if(!usuario) {
+            return res.status(401).json({mensagem: 'Não vai subir niguem'})
+        }
+
+        const senhaValida = await bcrypt.compare(senha, usuario.senha);
+        if (!senhaValida) {
+            return res.status(401).json({mensagem: 'Não vai subir niguem'})
+        }
+
+        const token = jwt.sign(
+            { nomeFulano: usuario.nome},
+            JWT_SECRET,
+            { expiresIn: '1h' }
+        );
+
+        return res.json({ token: token });
+    }
+}
+
+<-)
+
+(em 'routes' crie o arquivo 'authRouter.ts')
+(em 'authRouter.ts' escreva ->
+
+import {Router} from "express";
+import { AuthController } from "../controllers/authController";
+
+const authRouter = Router();
+const authController = new AuthController();
+
+
+
+/**
+ * @swagger
+ * components:
+ *   securitySchemes:
+ *     bearerAuth:
+ *       type: http
+ *       scheme: bearer
+ *       bearerFormat: JWT
+ */
+
+/**
+ * @swagger
+ * /api/auth/login:
+ *   post:
+ *     summary: Fazer login
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *               - senha
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 example: admin@teste.com
+ *               senha:
+ *                 type: string
+ *                 example: senha
+ *     responses:
+ *       200:
+ *         description: Login realizado com sucesso
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
+ *       401:
+ *         description: Credenciais inválidas
+ */
+authRouter.post("/login", (req, res) => authController.login(req, res));
+
+
+
+/**
+ * @swagger
+ * /api/auth/registro:
+ *   post:
+ *     summary: Registrar novo usuário
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - nome
+ *               - email
+ *               - senha
+ *             properties:
+ *               nome:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               senha:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Usuário criado com sucesso
+ *       400:
+ *         description: Dados inválidos
+ */
+authRouter.post("/registro", (req, res) => authController.registro(req, res));
+
+export default authRouter;
+
+<-)
+
+(em 'server.ts' escreva ->
+
+import express from "express";
+import swaggerUi from "swagger-ui-express";
+
+import { swaggerSpec } from "./config/swagger";
+import alunoRouter from "./routes/alunoRoute";
+import authRouter from "./routes/authRoute";
+
+const app = express();
+app.use(express.json());
+
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+
+app.use("/aluno", alunoRouter);
+app.use("/auth", authRouter);
+
+app.listen(3000, () => {
+    console.log("API Server Rodando");
+});
+
+<-)
+
+(em 'swagger.ts' da pasta 'config' escreva ->
+
+import swaggerJSDoc from "swagger-jsdoc";
+
+const options = {
+    definition: {
+        openapi: '3.0.0',
+        info: {
+            title: 'API de Alunos',
+            version: '1.0.0',
+            description: 'API para gerencioamento de alunos'
+        },
+
+        components: {
+            securitySchemas: {
+                bearerAuth: {
+                    type: 'http',
+                    schema: 'bearer',
+                    bearerFormat: 'JWT'
+                }
+            }
+        },
+
+        servers: [
+            {
+                url: 'http://localhost:3000',
+                description: 'Servidor de desenvolvimento'
+            }
+        ] 
+    },
+    apis: ['./src/routes/*.ts', './src/controllers/*.ts']
+}
+
+export const swaggerSpec = swaggerJSDoc(options);
+
+<-)
+
+(em 'src' crie um arquivo chamado 'middlewares/auth.ts')
+(em 'auth.ts' escreva ->
+
+import { Request, Response, NextFunction } from "express";
+import jwt from "jsonwebtoken";
+
+const JWT_SECRET = process.env.JWT_SECRET || 'PenaltiFoiPIX';
+
+export const authMiddleware = (req: Request, res: Response, next: NextFunction) => {
+    const authHeader = req.header('Autorization');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : authHeader;
+
+    if (!token) {
+        return res.status(401).json({menssagem: "Token Invalido"});
+    }
+
+    try {
+        jwt.verify(token, JWT_SECRET);
+        next();
+    }
+    catch {
+        return res.status(403).json({menssagem: "Não autorizado"})
+    }
+}
+
+<-)
+
+(em 'alunoRouter.ts' escreva ->
+
+import {Router} from "express";
+import {AlunoController} from "../controllers/alunoController";
+import { authMiddleware } from "../middlewares/auth";
+
+const alunoRouter = Router();
+const aluno = new AlunoController();
+
+alunoRouter.use(authMiddleware);
+
+/**
+ * @swagger
+ * components:
+ *  schemas:
+ *      Aluno:
+ *          type: object
+ *          required:
+ *              - nome
+ *              - ra
+ *          properties: 
+ *              nome:
+ *                  type: string
+ *                  description: Nome do Aluno
+ *              ra: 
+ *                  type: string
+ *                  description: Registro unico de Aluno              
+ */
+
+/**
+ * @swagger
+ * /aluno:
+ *  get:
+ *      summary: Lista todos os alunos
+ *      tags: [Aluno]
+ *      security:
+ *          - bearerAuth: []
+ *      responses: 
+ *          200:
+ *              description: Lista de alunos
+ *              content: 
+ *                  application/json:
+ *                      schema: 
+ *                          type: array
+ *                          items: 
+ *                              $ref: '#/components/schemas/Aluno'
+ */
+
+alunoRouter.get("/", (req, res) => aluno.get(req, res));
+
+
+/**
+ * @swagger
+ * /aluno:
+ *  post:
+ *      summary: Cadastrar um aluno
+ *      tags: [Aluno]
+ *      security:
+ *          - bearerAuth: []
+ *      requestBody: 
+ *          content: 
+ *              application/json:
+ *                  schema:
+ *                      $ref: '#/components/schemas/Aluno'
+ *      responses: 
+ *          201:
+ *              description: Aluno criado
+ *              content: 
+ *                  application/json:
+ *                      schema: 
+ *                          $ref: '#/components/schemas/Aluno'
+ */
+alunoRouter.post("/", (req, res) => aluno.post(req, res));
+
+
+
+alunoRouter.put("/:ra", (req, res) => aluno.put(req, res));
+
+export default alunoRouter;
+
+<-)
