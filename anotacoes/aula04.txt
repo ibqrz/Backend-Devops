@@ -1,0 +1,191 @@
+npm i
+npm i sequelize sqlite3
+
+(em 'src' crie tres pastas 'models', 'repositories' e 'services')
+(em 'config' crie o arquivo 'database.ts')
+
+(em 'database.ts' escreva ->
+
+import { Sequelize } from "sequelize";
+
+export const sequelize = new Sequelize({
+    dialect: 'sqlite',
+    storage: './database.sqlite',
+    logging: false
+});
+
+export const connectDataBase = async() => {
+try {
+    await sequelize.authenticate();
+    await sequelize.sync();
+}
+catch (error) {
+    console.log("Erro ao conectar com banco: ", error);
+}
+} 
+
+<-)
+
+(em 'models' crie o arquivo 'Aluno.ts')
+
+(em 'Aluno.ts' escreva ->
+
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../config/database";
+
+export interface AlunoAttributes {
+    id?: number;
+    ra: string;
+    nome: string;
+    email: string;
+}
+
+export class Aluno extends Model<AlunoAttributes> implements AlunoAttributes {
+    
+    public id!: number;
+    public ra!: string;
+    public nome!: string;
+    public email!: string;
+}
+
+Aluno.init ({
+    id: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    ra: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
+    },
+    nome: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    email: {
+        type: DataTypes.STRING,
+        allowNull: false
+    }
+},
+{
+    sequelize,
+    modelName: 'Aluno',
+    tableName: 'Aluno'
+});
+
+<-)
+
+(em 'models' crie 'Usuario.ts' e escrev ->
+
+import { DataTypes, Model } from "sequelize";
+import { sequelize } from "../config/database";
+import { types } from "util";
+
+export interface UsuarioAttributes {
+    id?: number,
+    nome: string,
+    email: string,
+    senha: string
+}
+
+export class Usuario extends Model<UsuarioAttributes> implements UsuarioAttributes {
+    
+    public id!: number | undefined;
+    public nome!: string;
+    public email!: string;
+    public senha!: string;
+}
+
+Usuario.init ({
+    id: {
+        type: DataTypes.INTEGER,
+        autoIncrement: true,
+        primaryKey: true
+    },
+    nome: {
+        type: DataTypes.STRING,
+        allowNull: false
+    },
+    email: {
+        type: DataTypes.STRING,
+        allowNull: false,
+        unique: true
+    },
+    senha: {
+        type: DataTypes.STRING,
+        allowNull: false
+    }
+},
+{
+    sequelize,
+    modelName: 'Usuario',
+    tableName: 'Usuario'
+});
+
+<-)
+
+(em 'repositories' crie um arquivo 'AlunoRepository.ts' e escreva ->
+
+import { Aluno, AlunoAttributes } from '../models/Aluno';
+
+export class AlunoRepository {
+    async findAll(): Promise<Aluno[] | null> {
+        return await Aluno.findAll();
+    }
+
+    async findByRA(ra: string): Promise<Aluno | null> {
+        return await Aluno.findOne({where: {ra}});
+    }
+
+    async create(aluno: Omit<AlunoAttributes, 'id'>): Promise<Aluno> {
+        return await Aluno.create(aluno);
+    }
+}
+
+<-)
+
+(em 'repositories' crie 'UsuarioRepository.ts' e escreva ->
+
+import { Usuario, UsuarioAttributes } from "../models/Usuario";
+
+export class UsuarioRepository {
+    async findByEmail(email: string): Promise<Usuario | null> {
+        return await Usuario.findOne({where: {email}});
+    }
+
+    async create(usuario: Omit<UsuarioAttributes, 'id'>): Promise<Usuario> {
+        return await Usuario.create(usuario);
+    }
+}
+
+<-)
+
+(em 'sevices' crie 'AlunoServices.ts' e escreva ->
+
+import { AlunoRepository } from "../repositories/AlunoRepository";
+import { AlunoAttributes } from '../models/Aluno';
+
+export class AlunoService {
+    private alunoRepository: AlunoRepository;
+
+    constructor() {
+        this.alunoRepository = new AlunoRepository();
+    }
+
+    async create(aluno: Omit<AlunoAttributes, 'id'>) {
+        const alunoExistente = await this.alunoRepository.findByRA(aluno.ra);
+
+        if (alunoExistente) {
+            throw new Error("RA já existente");
+        }
+
+        return await this.alunoRepository.create(aluno);
+    }
+
+    async getAll() {
+        return await this.alunoRepository.findAll();
+    }
+}
+
+<-)
