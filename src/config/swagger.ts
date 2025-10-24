@@ -6,7 +6,7 @@ const options = {
         info: {
             title: 'API de Alunos',
             version: '1.0.0',
-            description: 'API para gerencioamento de alunos'
+            description: 'API para gerenciamento de alunos'
         },
 
         components: {
