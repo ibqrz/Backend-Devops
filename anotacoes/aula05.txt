@@ -1,0 +1,77 @@
+aula05 (docker)
+
+(baixar o Docker desktop)
+
+(no cmd)
+docker container ls (ver os containers ativos)
+
+docker container ls -a (ver todos os containers) 
+
+docker run -d --name api-nginx -p 80:80 nginx (-d pra não alocar o terminal)
+
+(pesquise por 'http://localhost')
+
+docker exec -it api-nginx //bin//bash (vai para o terminal do container)
+
+(dentro do terminal #)
+
+ls (ver os arquivos da pasta)
+
+cd /usr/share/nginx/html
+
+apt-get update
+
+apt-get install nano 
+
+Y
+
+nano index.html
+
+ctrl + x (salva as alterações)
+
+Y/N (para salvar)
+
+exit (para sair)
+
+(para transformar a API em container)
+
+(na pasta que quiser)
+git clone https://github.com/ibqrz/Backend-Devops.git
+
+npm i
+
+npm run dev  
+
+(pesquise por 'http://localhost:3000/api-docs/')
+
+(Na raiz crie "Dockerfile" e escreva ->
+
+FROM node:20.15.1
+
+WORKDIR /app
+
+COPY package.json ./
+
+RUN npm install
+
+COPY . .
+
+EXPOSE 3000
+
+ENTRYPOINT ["npm", "run", "dev"]
+
+<-)
+
+(crie ".dockerignore" ->
+
+node_modules
+
+<-)
+
+(no cmd)
+
+docker image ls
+
+docker build -t aula-docker:latest -f Dockerfile .
+
+docker run --name aula-docker -p 3000:3000 aula-docker:latest (roda a API pelo container, pode mudar a porta ex: 3001 -p 3001:3000)

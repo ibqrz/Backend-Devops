@@ -13,6 +13,8 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use("/aluno", alunoRouter);
 app.use("/auth", authRouter);
 
+// teste
+
 app.listen(3000, () => {
     console.log("API Server Rodando");
 });
