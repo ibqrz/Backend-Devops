@@ -5,13 +5,19 @@ import { swaggerSpec } from "./config/swagger";
 import alunoRouter from "./routes/alunoRoute";
 import authRouter from "./routes/authRoute";
 
+import cors from "cors"; 
+
 const app = express();
 app.use(express.json());
+
+app.use(cors());
 
 app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 app.use("/aluno", alunoRouter);
 app.use("/auth", authRouter);
+
+// teste
 
 app.listen(3000, () => {
     console.log("API Server Rodando");
